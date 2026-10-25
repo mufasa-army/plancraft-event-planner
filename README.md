@@ -31,5 +31,5 @@ PlanCraft AI is an end-to-end intelligent event orchestration platform that empo
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/your-username/celebration-event-planner.git](https://github.com/your-username/celebration-event-planner.git)
-   cd celebration-event-planner
+   git clone https://github.com/mufasa-army/plancraft-event-planner.git
+   cd plancraft-event-planner
