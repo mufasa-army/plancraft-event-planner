@@ -1,4 +1,6 @@
 # 🎉 PlanCraft AI — GenAI-Powered Celebration & Event Planner
+> **🌐 Live Demo Link:** [https://plancraft-event-planner-jeet-chattaraj.streamlit.app](https://plancraft-event-planner-udyaufr5expci5pjwqqu47.streamlit.app)
+
 Built for **Google for Developers & Hack2Skill PromptWars [Challenge 5]**.
 
 PlanCraft AI is an end-to-end intelligent event orchestration platform that empowers users to design, budget, and execute milestone celebrations—from weddings and birthdays to large community tech meetups.
@@ -11,7 +13,7 @@ PlanCraft AI is an end-to-end intelligent event orchestration platform that empo
 - **⏳ Milestone Timelines:** Phased countdown schedules (Early Planning, Mid Execution, Final 48 Hours, and Event-Day Run-Down).
 - **🤝 Vendor Due Diligence Checklists:** Tailored questions and requirement specifications for photographers, caterers, decorators, and venue managers.
 - **💡 Personalized Creative Concepts:** Context-aware theme ideas, guest engagement touchpoints, and custom souvenirs.
-- **📥 One-Click Export:** Download complete blueprints in JSON format for offline execution.
+- **📄 One-Click Export:** Download complete blueprints in structured PDF format for offline execution.
 
 ---
 
