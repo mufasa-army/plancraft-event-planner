@@ -1,5 +1,5 @@
 # 🎉 PlanCraft AI — GenAI-Powered Celebration & Event Planner
-> **🌐 Live Demo Link:** [https://plancraft-event-planner-jeet-chattaraj.streamlit.app](https://plancraft-event-planner-udyaufr5expci5pjwqqu47.streamlit.app)
+> **🌐 Live Demo Link:** [https://plancraft-event-planner-jeet-chattaraj.streamlit.app/](https://plancraft-event-planner-jeet-chattaraj.streamlit.app/)
 
 Built for **Google for Developers & Hack2Skill PromptWars [Challenge 5]**.
 
