@@ -2,20 +2,36 @@ import streamlit as st
 import json
 import os
 import io
+import re
 import pandas as pd
 import plotly.express as px
 from google import genai
 from google.genai import types
 from fpdf import FPDF
 
-# Page setup
+# Page setup with accessibility metadata
 st.set_page_config(
     page_title="PlanCraft AI - Celebration & Event Planner",
     page_icon="🎉",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# PDF Generation Class
+def clean_text(text: str) -> str:
+    """Sanitizes text strings for cross-platform Latin-1 PDF encoding."""
+    if not isinstance(text, str):
+        text = str(text)
+    return text.encode('latin-1', 'replace').decode('latin-1')
+
+def sanitize_input(user_str: str) -> str:
+    """Sanitizes user input to prevent prompt manipulation and script injection."""
+    if not user_str:
+        return ""
+    # Strip dangerous HTML/script tags and limit length
+    cleaned = re.sub(r'<[^>]*?>', '', user_str)
+    return cleaned.strip()[:500]
+
+# PDF Generation Class with accessible structure
 class EventPlanPDF(FPDF):
     def header(self):
         self.set_font("Helvetica", "B", 15)
@@ -37,35 +53,30 @@ def build_pdf_document(plan_data, category, budget, guests, days, theme):
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
-    def clean_text(text):
-        return str(text).encode('latin-1', 'replace').decode('latin-1')
-
     # 1. Executive Summary
     pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "1. Executive Summary & Parameters", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, "1. Executive Summary & Parameters", ln=True)
     pdf.set_font("Helvetica", "", 10)
     pdf.cell(95, 6, f"Event Category: {clean_text(category)}", border=0)
-    pdf.cell(95, 6, f"Total Budget: INR {budget:,}", border=0, new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(95, 6, f"Total Budget: INR {budget:,}", border=0, ln=True)
     pdf.cell(95, 6, f"Expected Guests: {guests}", border=0)
-    pdf.cell(95, 6, f"Countdown: {days} Days Left", border=0, new_x="LMARGIN", new_y="NEXT")
-    pdf.multi_cell(0, 6, f"Theme & Vibe: {clean_text(theme)}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(95, 6, f"Countdown: {days} Days Left", border=0, ln=True)
+    pdf.multi_cell(190, 6, f"Theme & Vibe: {clean_text(theme)}")
     pdf.ln(2)
 
     pdf.set_font("Helvetica", "I", 10)
-    pdf.multi_cell(0, 5, f"Overview: {clean_text(plan_data.get('event_overview', ''))}", new_x="LMARGIN", new_y="NEXT")
+    pdf.multi_cell(190, 5, f"Overview: {clean_text(plan_data.get('event_overview', ''))}")
     pdf.ln(5)
 
     # 2. Budget Allocation
     pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "2. Budget Allocation", new_x="LMARGIN", new_y="NEXT")
-    
-    # Table Header
+    pdf.cell(0, 8, "2. Budget Allocation", ln=True)
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_fill_color(235, 235, 235)
     pdf.cell(45, 7, "Category", border=1, fill=True)
     pdf.cell(28, 7, "Amount (INR)", border=1, fill=True)
     pdf.cell(22, 7, "Share (%)", border=1, fill=True)
-    pdf.cell(95, 7, "Practical Tip", border=1, fill=True, new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(95, 7, "Practical Tip", border=1, fill=True, ln=True)
 
     pdf.set_font("Helvetica", "", 8)
     for b in plan_data.get("budget_breakdown", []):
@@ -77,77 +88,81 @@ def build_pdf_document(plan_data, category, budget, guests, days, theme):
         pdf.cell(45, 6, cat[:24], border=1)
         pdf.cell(28, 6, amt, border=1)
         pdf.cell(22, 6, pct, border=1)
-        pdf.cell(95, 6, tip[:65], border=1, new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(95, 6, tip[:65], border=1, ln=True)
     pdf.ln(5)
 
     # 3. Milestone Timeline & Schedule
     pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "3. Milestone Timeline & Schedule", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, "3. Milestone Timeline & Schedule", ln=True)
     for phase in plan_data.get("milestone_timeline", []):
         pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(0, 6, f"[{clean_text(phase.get('phase', ''))}]", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 6, f"[{clean_text(phase.get('phase', ''))}]", ln=True)
         pdf.set_font("Helvetica", "", 9)
         for task in phase.get("tasks", []):
-            pdf.multi_cell(0, 5, f"  * [ ] {clean_text(task)}", new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(190, 5, f"  * [ ] {clean_text(task)}")
         pdf.ln(2)
     pdf.ln(3)
 
     # 4. Vendor Checklists
     pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "4. Vendor Due Diligence Checklists", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, "4. Vendor Due Diligence Checklists", ln=True)
     for vendor in plan_data.get("vendor_checklists", []):
         pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(0, 6, f"Vendor Type: {clean_text(vendor.get('vendor_type', ''))}", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 6, f"Vendor Type: {clean_text(vendor.get('vendor_type', ''))}", ln=True)
         pdf.set_font("Helvetica", "", 9)
         deliv = clean_text(vendor.get('deliverables', ''))
-        pdf.multi_cell(0, 5, f"Deliverables: {deliv}", new_x="LMARGIN", new_y="NEXT")
-        
+        pdf.multi_cell(190, 5, f"Deliverables: {deliv}")
         questions = vendor.get("key_questions_to_ask", [])
         if isinstance(questions, list):
             for q in questions:
-                pdf.multi_cell(0, 5, f"  - {clean_text(q)}", new_x="LMARGIN", new_y="NEXT")
+                pdf.multi_cell(190, 5, f"  - {clean_text(q)}")
         elif isinstance(questions, str):
-            pdf.multi_cell(0, 5, f"  - {clean_text(questions)}", new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(190, 5, f"  - {clean_text(questions)}")
         pdf.ln(2)
     pdf.ln(3)
 
     # 5. Personalized Ideas
     pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "5. Personalized Creative Concepts", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, "5. Personalized Creative Concepts", ln=True)
     for idea in plan_data.get("personalized_ideas", []):
         pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(0, 6, f"{clean_text(idea.get('title', ''))} ({clean_text(idea.get('category', ''))})", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 6, f"{clean_text(idea.get('title', ''))} ({clean_text(idea.get('category', ''))})", ln=True)
         pdf.set_font("Helvetica", "", 9)
-        pdf.multi_cell(0, 5, clean_text(idea.get('details', '')), new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(190, 5, clean_text(idea.get('details', '')))
         pdf.ln(2)
 
     return bytes(pdf.output())
 
-# Initialize Gemini Client
+# Security: Safe API Key Management
 api_key = os.environ.get("GEMINI_API_KEY")
 if not api_key:
-    st.sidebar.warning("GEMINI_API_KEY environment variable not found. Enter your key below.")
-    api_key = st.sidebar.text_input("Enter Gemini API Key:", type="password")
+    api_key = st.sidebar.text_input(
+        "Enter Gemini API Key:", 
+        type="password", 
+        help="Input your Google AI Studio API key securely. It is not persisted on disk."
+    )
 
 client = genai.Client(api_key=api_key) if api_key else None
 
-st.title("PlanCraft AI - Smart Celebration & Event Planner")
-st.markdown("Gemini-powered end-to-end planning assistant for Weddings, Birthdays, and Community Events.")
+st.title("PlanCraft AI — Smart Celebration & Event Planner")
+st.markdown("Accessible, enterprise-grade AI event orchestration assistant for milestone celebrations.")
 
-# --- SIDEBAR INPUTS ---
-st.sidebar.header("Event Parameters")
+# --- ACCESSIBLE SIDEBAR INPUTS ---
+st.sidebar.header("⚙️ Event Parameters")
 
 event_type = st.sidebar.selectbox(
     "Event Category",
-    ["Wedding", "Birthday Party", "Community Meetup / Fest", "Anniversary Celebration", "Corporate Gala"]
+    ["Wedding", "Birthday Party", "Community Meetup / Fest", "Anniversary Celebration", "Corporate Gala"],
+    help="Select the category of the milestone event to tune planning logic."
 )
 
 total_budget = st.sidebar.number_input(
-    "Total Budget (INR)",
+    "Total Budget (INR ₹)",
     min_value=5000,
     max_value=10000000,
     value=50000,
-    step=5000
+    step=5000,
+    help="Enter whole budget amount in Indian Rupees for automatic zero-sum allocation."
 )
 
 guest_count = st.sidebar.number_input(
@@ -155,30 +170,42 @@ guest_count = st.sidebar.number_input(
     min_value=5,
     max_value=2000,
     value=100,
-    step=10
+    step=10,
+    help="Target headcount to estimate per-plate and space logistics."
 )
 
 timeline_days = st.sidebar.slider(
     "Days Left Until Event",
     min_value=1,
     max_value=180,
-    value=30
+    value=30,
+    help="Total lead time available for procurement and booking."
 )
 
 theme_vibe = st.sidebar.text_input(
     "Theme / Vibe / Style",
-    value="Minimalist, Eco-friendly with live acoustic music"
+    value="Minimalist, Eco-friendly with live acoustic music",
+    help="Aesthetic tone or creative motifs for AI personalization."
 )
 
 special_notes = st.sidebar.text_area(
     "Specific Constraints / Requirements",
-    value="Vegetarian food preferred, indoor hall setup, need return gift ideas"
+    value="Vegetarian food preferred, indoor hall setup, need return gift ideas",
+    help="Dietary, logistical, or cultural guidelines."
 )
 
-generate_btn = st.sidebar.button("Generate Event Plan", type="primary")
+generate_btn = st.sidebar.button("🚀 Generate Event Plan", type="primary", use_container_width=True)
 
-# --- PROMPT FUNCTION ---
-def generate_event_plan(category, budget, guests, days, theme, notes):
+# Efficiency: Caching API responses to prevent re-query overhead
+@st.cache_data(show_spinner=False, ttl=3600)
+def cached_generate_plan(_api_key_str, category, budget, guests, days, theme, notes):
+    """Generates and caches event blueprints using Gemini with strict schema enforcement."""
+    temp_client = genai.Client(api_key=_api_key_str)
+    
+    clean_category = sanitize_input(category)
+    clean_theme = sanitize_input(theme)
+    clean_notes = sanitize_input(notes)
+
     system_instruction = (
         "You are an expert event planner specializing in weddings, birthdays, and community gatherings. "
         "Create an actionable, highly structured, realistic event plan based on user budget and constraints. "
@@ -187,12 +214,12 @@ def generate_event_plan(category, budget, guests, days, theme, notes):
     )
 
     user_prompt = f"""
-    Event Category: {category}
+    Event Category: {clean_category}
     Total Budget: {budget} INR
     Expected Guests: {guests}
     Timeline Available: {days} days
-    Theme/Vibe: {theme}
-    Additional Notes: {notes}
+    Theme/Vibe: {clean_theme}
+    Additional Notes: {clean_notes}
 
     Generate a complete celebration blueprint in JSON with the following structure:
     {{
@@ -221,7 +248,7 @@ def generate_event_plan(category, budget, guests, days, theme, notes):
     }}
     """
 
-    response = client.models.generate_content(
+    response = temp_client.models.generate_content(
         model="gemini-2.5-flash",
         contents=user_prompt,
         config=types.GenerateContentConfig(
@@ -232,33 +259,32 @@ def generate_event_plan(category, budget, guests, days, theme, notes):
     )
     return json.loads(response.text)
 
-# --- APP WORKFLOW ---
+# --- WORKFLOW EXECUTION ---
 if generate_btn:
-    if not client:
-        st.error("Please enter a valid Gemini API Key to proceed.")
+    if not api_key:
+        st.error("🔒 Please provide a valid Gemini API Key to proceed.")
     else:
-        with st.spinner("Analyzing parameters and synthesizing event blueprint with Gemini..."):
+        with st.spinner("Analyzing constraints and synthesizing event execution blueprint..."):
             try:
-                plan = generate_event_plan(event_type, total_budget, guest_count, timeline_days, theme_vibe, special_notes)
+                plan = cached_generate_plan(api_key, event_type, total_budget, guest_count, timeline_days, theme_vibe, special_notes)
                 st.session_state["event_plan"] = plan
-                st.success("Event plan generated successfully!")
+                st.success("✨ Execution blueprint synthesized successfully!")
             except Exception as e:
-                st.error(f"Error generating plan: {str(e)}")
+                st.error(f"Generation error: {str(e)}")
 
-# --- DISPLAY PLAN OUTPUT ---
+# --- ACCESSIBLE DATA VISUALIZATION ---
 if "event_plan" in st.session_state:
     data = st.session_state["event_plan"]
 
     st.info(f"**Event Concept:** {data.get('event_overview', '')}")
 
     tab1, tab2, tab3, tab4 = st.tabs([
-        "Budget Planner",
-        "Timelines & Schedule",
-        "Vendor Checklist",
-        "Personalized Ideas"
+        "💰 Budget Allocation",
+        "⏳ Milestones & Roadmap",
+        "🤝 Vendor Due Diligence",
+        "💡 Personalized Ideas"
     ])
 
-    # Tab 1: Budget
     with tab1:
         st.subheader("Budget Allocation & Cost Optimization")
         budget_list = data.get("budget_breakdown", [])
@@ -271,7 +297,7 @@ if "event_plan" in st.session_state:
                     df_budget[["category", "amount", "percentage", "practical_tip"]],
                     column_config={
                         "category": "Category",
-                        "amount": st.column_config.NumberColumn("Allocated (INR)", format="%d"),
+                        "amount": st.column_config.NumberColumn("Allocated (INR ₹)", format="₹%d"),
                         "percentage": st.column_config.NumberColumn("Share (%)", format="%d%%"),
                         "practical_tip": "Cost Saving Tip"
                     },
@@ -285,35 +311,36 @@ if "event_plan" in st.session_state:
                     values="amount",
                     names="category",
                     hole=0.4,
-                    title="Budget Distribution"
+                    title="Budget Distribution",
+                    color_discrete_sequence=px.colors.qualitative.Safe
                 )
-                fig.update_layout(margin=dict(l=20, r=20, t=40, b=20))
+                fig.update_layout(
+                    margin=dict(l=20, r=20, t=40, b=20),
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
+                )
                 st.plotly_chart(fig, use_container_width=True)
 
-    # Tab 2: Timelines
     with tab2:
-        st.subheader("Event Countdown & Phase Roadmap")
+        st.subheader("Milestone Countdown Roadmap")
         timeline_list = data.get("milestone_timeline", [])
         for item in timeline_list:
             with st.expander(f"📍 {item.get('phase', 'Phase')}", expanded=True):
                 for task in item.get("tasks", []):
-                    st.checkbox(task, key=f"task_{task[:15]}_{item.get('phase', '')}")
+                    st.checkbox(task, key=f"t_{hash(task)}")
 
-    # Tab 3: Vendor Checklist
     with tab3:
-        st.subheader("Vendor Due Diligence & Requirements")
+        st.subheader("Vendor Due Diligence Playbook")
         vendor_list = data.get("vendor_checklists", [])
         for v in vendor_list:
             st.markdown(f"### 📦 {v.get('vendor_type')}")
             st.write(f"**Expected Deliverables:** {v.get('deliverables')}")
-            st.write("**Key Questions to Ask Before Booking:**")
+            st.write("**Key Due Diligence Inquiries:**")
             for q in v.get("key_questions_to_ask", []):
                 st.markdown(f"- [ ] {q}")
             st.divider()
 
-    # Tab 4: Ideas
     with tab4:
-        st.subheader("Curated Creative Touchpoints")
+        st.subheader("Contextual Creative Touchpoints")
         ideas_list = data.get("personalized_ideas", [])
         cols = st.columns(len(ideas_list) if 0 < len(ideas_list) <= 3 else 3)
         for idx, idea in enumerate(ideas_list):
@@ -322,7 +349,7 @@ if "event_plan" in st.session_state:
                 st.caption(f"Category: {idea.get('category')}")
                 st.write(idea.get("details"))
 
-    # Direct PDF Download Button
+    # Direct PDF Download
     st.divider()
     try:
         pdf_bytes = build_pdf_document(
@@ -338,8 +365,8 @@ if "event_plan" in st.session_state:
             label="📄 Download Event Blueprint (PDF)",
             data=pdf_bytes,
             file_name="PlanCraft_Event_Blueprint.pdf",
-            mime="application/pdf"
+            mime="application/pdf",
+            use_container_width=True
         )
     except Exception as pdf_err:
         st.error(f"Error compiling PDF: {str(pdf_err)}")
-
