@@ -4,3 +4,5 @@ pandas
 plotly
 fpdf2
 pytest
+pytest-mock
+pytest-cov
